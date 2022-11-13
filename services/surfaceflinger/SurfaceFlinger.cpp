@@ -6103,7 +6103,7 @@ status_t SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
 
     RenderAreaFuture renderAreaFuture = ftl::defer([=] {
         return DisplayRenderArea::create(displayWeak, args.sourceCrop, reqSize, dataspace,
-                                         args.useIdentityTransform, args.captureSecureLayers);
+                                         args.useIdentityTransform, true);
     });
 
     auto traverseLayers = [this, args, layerStack](const LayerVector::Visitor& visitor) {
@@ -6111,7 +6111,7 @@ status_t SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
     };
 
     return captureScreenCommon(std::move(renderAreaFuture), traverseLayers, reqSize,
-                               args.pixelFormat, args.allowProtected, args.grayscale,
+                               args.pixelFormat, true, args.grayscale,
                                captureListener);
 }
 
@@ -6147,7 +6147,7 @@ status_t SurfaceFlinger::captureDisplay(uint64_t displayIdOrLayerStack,
     RenderAreaFuture renderAreaFuture = ftl::defer([=] {
         return DisplayRenderArea::create(displayWeak, Rect(), size, dataspace,
                                          false /* useIdentityTransform */,
-                                         false /* captureSecureLayers */);
+                                         true /* captureSecureLayers */);
     });
 
     auto traverseLayers = [this, layerStack](const LayerVector::Visitor& visitor) {
@@ -6155,7 +6155,7 @@ status_t SurfaceFlinger::captureDisplay(uint64_t displayIdOrLayerStack,
     };
 
     return captureScreenCommon(std::move(renderAreaFuture), traverseLayers, size,
-                               ui::PixelFormat::RGBA_8888, false /* allowProtected */,
+                               ui::PixelFormat::RGBA_8888, true /* allowProtected */,
                                false /* grayscale */, captureListener);
 }
 
@@ -6249,7 +6249,7 @@ status_t SurfaceFlinger::captureLayers(const LayerCaptureArgs& args,
     RenderAreaFuture renderAreaFuture = ftl::defer([=]() -> std::unique_ptr<RenderArea> {
         return std::make_unique<LayerRenderArea>(*this, parent, crop, reqSize, dataspace,
                                                  childrenOnly, layerStackSpaceRect,
-                                                 args.captureSecureLayers);
+                                                 true);
     });
 
     auto traverseLayers = [parent, args, excludeLayers](const LayerVector::Visitor& visitor) {
@@ -6275,7 +6275,7 @@ status_t SurfaceFlinger::captureLayers(const LayerCaptureArgs& args,
     };
 
     return captureScreenCommon(std::move(renderAreaFuture), traverseLayers, reqSize,
-                               args.pixelFormat, args.allowProtected, args.grayscale,
+                               args.pixelFormat, true, args.grayscale,
                                captureListener);
 }
 
@@ -6299,7 +6299,7 @@ status_t SurfaceFlinger::captureScreenCommon(RenderAreaFuture renderAreaFuture,
     // application to avoid being screenshot or drawn via unsecure display.
     const bool supportsProtected = getRenderEngine().supportsProtectedContent();
     bool hasProtectedLayer = false;
-    if (allowProtected && supportsProtected) {
+    if (supportsProtected) {
         hasProtectedLayer = schedule([=]() {
                                 bool protectedLayerFound = false;
                                 traverseLayers([&](Layer* layer) {
@@ -6312,7 +6312,7 @@ status_t SurfaceFlinger::captureScreenCommon(RenderAreaFuture renderAreaFuture,
 
     const uint32_t usage = GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_RENDER |
             GRALLOC_USAGE_HW_TEXTURE |
-            (hasProtectedLayer && allowProtected && supportsProtected
+            (hasProtectedLayer && supportsProtected
                      ? GRALLOC_USAGE_PROTECTED
                      : GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
     sp<GraphicBuffer> buffer =
